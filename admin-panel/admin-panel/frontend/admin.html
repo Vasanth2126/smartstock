@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartStock Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#181c27;--bg3:#1f2435;
+  --border:#2a2f42;--border2:#363c54;
+  --text:#e8eaf0;--text2:#8b90a7;--text3:#555c78;
+  --accent:#4f8ef7;--accent-bg:rgba(79,142,247,0.12);
+  --green:#34d399;--green-bg:rgba(52,211,153,0.10);
+  --amber:#fbbf24;--amber-bg:rgba(251,191,36,0.10);
+  --red:#f87171;--red-bg:rgba(248,113,113,0.10);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.10);
+  --r:10px;--rs:6px;
+}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+/* Layout */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:18px 16px;border-bottom:1px solid var(--border)}
+.sb-logo-icon{font-size:20px}
+.sb-logo-text{font-size:15px;font-weight:600;color:var(--accent)}
+.sb-user{padding:12px 16px;border-bottom:1px solid var(--border)}
+.sb-user-name{font-size:13px;font-weight:500}
+.sb-user-role{font-size:11px;color:var(--text3);text-transform:capitalize;margin-top:1px}
+.sb-role-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;margin-top:4px}
+.role-superadmin{background:var(--purple-bg);color:var(--purple)}
+.role-owner{background:var(--accent-bg);color:var(--accent)}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--rs);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent)}
+.nav-icon{font-size:15px;flex-shrink:0}
+.sb-logout{margin:10px 8px;padding:9px 10px;border:none;background:none;color:var(--text2);font-size:13px;border-radius:var(--rs);cursor:pointer;display:flex;align-items:center;gap:10px}
+.sb-logout:hover{background:var(--red-bg);color:var(--red)}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.page{padding:28px 32px;flex:1}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px}
+.page-title{font-size:20px;font-weight:600}
+.page-sub{font-size:13px;color:var(--text2);margin-top:2px}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px}
+.stat-icon{font-size:22px;display:block;margin-bottom:8px}
+.stat-label{font-size:12px;color:var(--text2);margin-bottom:4px}
+.stat-value{font-size:26px;font-weight:600;font-family:monospace}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.blue{color:var(--accent)}.purple{color:var(--purple)}
+
+/* Table */
+.tbl-wrap{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 14px;font-size:11px;font-weight:500;color:var(--text2);letter-spacing:.05em;background:var(--bg3);border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3)}
+.tbl-empty{text-align:center;color:var(--text2);padding:32px}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-blue{background:var(--accent-bg);color:var(--accent)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
+.badge-gray{background:var(--bg3);color:var(--text2)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;padding:8px 16px;transition:.15s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff;border:none}
+.btn-primary:hover:not(:disabled){opacity:.88}
+.btn-ghost{background:none;color:var(--text2);border-color:var(--border)}
+.btn-ghost:hover:not(:disabled){background:var(--bg3);color:var(--text)}
+.btn-danger{background:var(--red-bg);color:var(--red);border-color:rgba(248,113,113,.3)}
+.btn-danger:hover:not(:disabled){background:rgba(248,113,113,.18)}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* Forms */
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:var(--text2)}
+.form-input{width:100%;padding:8px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-size:13px;outline:none;transition:.15s}
+.form-input:focus{border-color:var(--accent)}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:440px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:600}
+.modal-close{background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer}
+.modal-body{padding:20px 22px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+
+/* Auth page */
+.auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-card{width:100%;max-width:400px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:36px 32px}
+.auth-logo{font-size:20px;font-weight:700;color:var(--accent);margin-bottom:24px}
+.auth-title{font-size:22px;font-weight:600;margin-bottom:4px}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:var(--rs);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast-success{background:var(--green-bg);color:var(--green);border:1px solid rgba(52,211,153,.3)}
+.toast-error{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+
+/* Spinner */
+.spinner{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:60px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Section title */
+.sec-title{font-size:14px;font-weight:600;margin-bottom:14px}
+
+/* Shop detail row */
+.shop-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.shop-avatar{width:34px;height:34px;border-radius:8px;background:var(--accent-bg);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+.hidden{display:none}
+.loading-center{display:flex;align-items:center;justify-content:center;min-height:200px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:5000/api';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = {
+  token: localStorage.getItem('adminToken') || null,
+  user:  JSON.parse(localStorage.getItem('adminUser') || 'null'),
+  tab:   'dashboard',
+  data:  {},
+  modal: null,
+};
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function req(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(state.token ? { Authorization: 'Bearer ' + state.token } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Request failed');
+  return data;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function badge(label, color) {
+  return `<span class="badge badge-${color}">${label}</span>`;
+}
+function roleBadge(role) {
+  const map = { superadmin: 'purple', owner: 'blue', staff: 'gray' };
+  return badge(role, map[role] || 'gray');
+}
+function rupee(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
+function fmt(d) { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function login(email, password) {
+  const data = await req('POST', '/auth/login', { email, password });
+  if (!['superadmin', 'owner'].includes(data.user.role)) {
+    throw new Error('Staff accounts cannot access the admin panel.');
+  }
+  state.token = data.token;
+  state.user  = data.user;
+  localStorage.setItem('adminToken', data.token);
+  localStorage.setItem('adminUser', JSON.stringify(data.user));
+  render();
+}
+
+function logout() {
+  state.token = null; state.user = null; state.data = {};
+  localStorage.removeItem('adminToken'); localStorage.removeItem('adminUser');
+  render();
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  state.tab = tab;
+  state.modal = null;
+  render();
+  loadTabData(tab);
+}
+
+async function loadTabData(tab) {
+  const isSA = state.user?.role === 'superadmin';
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+
+  try {
+    if (tab === 'dashboard') {
+      if (isSA) {
+        const d = await req('GET', '/superadmin/stats');
+        state.data.platformStats = d;
+      } else {
+        const [dash, bills] = await Promise.all([req('GET', '/reports/dashboard'), req('GET', '/bills/today')]);
+        state.data.dashboard = dash; state.data.todayBills = bills;
+      }
+    } else if (tab === 'shops' && isSA) {
+      state.data.shops = await req('GET', '/superadmin/shops');
+    } else if (tab === 'users' && isSA) {
+      state.data.users = await req('GET', '/superadmin/users');
+    } else if (tab === 'staff') {
+      state.data.staff = await req('GET', '/staff');
+    }
+    renderTab();
+  } catch (e) {
+    main.innerHTML = `<div class="page"><p class="red">${e.message}</p></div>`;
+  }
+}
+
+// ── Render login ──────────────────────────────────────────────────────────────
+function renderLogin() {
+  document.getElementById('root').innerHTML = `
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="auth-logo">⚡ SmartStock Admin</div>
+        <h1 class="auth-title">Admin Sign In</h1>
+        <p class="auth-sub">For shop owners and super admins</p>
+        <div class="form-group"><label class="form-label">Email</label>
+          <input class="form-input" id="email" type="email" placeholder="admin@smartstock.com" value="admin@smartstock.com"></div>
+        <div class="form-group"><label class="form-label">Password</label>
+          <input class="form-input" id="password" type="password" placeholder="••••••" value="admin123456"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:12px" onclick="doLogin()">Sign in to Admin Panel</button>
+        <div style="margin-top:16px;padding:10px 14px;background:var(--bg3);border-radius:var(--rs);font-size:12px;color:var(--text2)">
+          <div>Super Admin: <span style="color:var(--purple)">admin@smartstock.com / admin123456</span></div>
+          <div style="margin-top:4px">Shop Owner: <span style="color:var(--accent)">ramesh@shop.com / password123</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function doLogin() {
+  const email    = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  try { await login(email, password); }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Render shell ──────────────────────────────────────────────────────────────
+function renderShell() {
+  const isSA = state.user.role === 'superadmin';
+  const superAdminNav = `
+    <button class="nav-item ${state.tab==='dashboard'?'active':''}" onclick="switchTab('dashboard')"><span class="nav-icon">⬛</span> Dashboard</button>
+    <button class="nav-item ${state.tab==='shops'?'active':''}"     onclick="switchTab('shops')"><span class="nav-icon">🏪</span> All Shops</button>
+    <button class="nav-item ${state.tab==='users'?'active':''}"     onclick="switchTab('users')"><span class="nav-icon">👥</span> All Users</button>`;
+  const ownerNav = `
+    <button class="nav-item ${state.tab==='dashboard'?'active':''}" onclick="switchTab('dashboard')"><span class="nav-icon">⬛</span> Dashboard</button>
+    <button class="nav-item ${state.tab==='staff'?'active':''}"     onclick="switchTab('staff')"><span class="nav-icon">👤</span> Staff</button>`;
+
+  document.getElementById('root').innerHTML = `
+    <div class="app">
+      <aside class="sidebar">
+        <div class="sb-logo"><span class="sb-logo-icon">⚡</span><span class="sb-logo-text">Admin Panel</span></div>
+        <div class="sb-user">
+          <div class="sb-user-name">${state.user.name}</div>
+          <div class="sb-user-role">${state.user.shopName || ''}</div>
+          <span class="sb-role-badge role-${state.user.role}">${state.user.role}</span>
+        </div>
+        <nav class="sb-nav">${isSA ? superAdminNav : ownerNav}</nav>
+        <button class="sb-logout" onclick="logout()"><span>🚪</span> Sign out</button>
+      </aside>
+      <main class="main"><div id="main-content"></div></main>
+    </div>`;
+}
+
+// ── Render tabs ────────────────────────────────────────────────────────────────
+function renderTab() {
+  const isSA = state.user.role === 'superadmin';
+  if (state.tab === 'dashboard') isSA ? renderSADashboard() : renderOwnerDashboard();
+  else if (state.tab === 'shops') renderShops();
+  else if (state.tab === 'users') renderUsers();
+  else if (state.tab === 'staff') renderStaff();
+}
+
+// Super Admin Dashboard
+function renderSADashboard() {
+  const { platformStats: d } = state.data;
+  if (!d) return;
+  const { stats, dailyRevenue } = d;
+  document.getElementById('main-content').innerHTML = `
+    <div class="page">
+      <div class="page-header">
+        <div><div class="page-title">Platform Overview</div><div class="page-sub">All shops, all sales</div></div>
+      </div>
+      <div class="grid-4">
+        <div class="stat-card"><span class="stat-icon">🏪</span><div class="stat-label">Total shops</div><div class="stat-value blue">${stats.totalShops}</div></div>
+        <div class="stat-card"><span class="stat-icon">👤</span><div class="stat-label">Total staff</div><div class="stat-value">${stats.totalStaff}</div></div>
+        <div class="stat-card"><span class="stat-icon">₹</span><div class="stat-label">Today's revenue</div><div class="stat-value green">${rupee(stats.todaysRevenue)}</div></div>
+        <div class="stat-card"><span class="stat-icon">💰</span><div class="stat-label">All-time revenue</div><div class="stat-value purple">${rupee(stats.totalRevenue)}</div></div>
+      </div>
+      <div class="card">
+        <div class="sec-title">Revenue last 7 days</div>
+        ${dailyRevenue.length === 0
+          ? '<p style="color:var(--text2);font-size:13px">No sales data yet</p>'
+          : `<div class="tbl-wrap"><table>
+              <thead><tr><th>Date</th><th>Bills</th><th>Revenue</th></tr></thead>
+              <tbody>${dailyRevenue.map(d => `
+                <tr>
+                  <td>${d._id}</td>
+                  <td>${d.count}</td>
+                  <td style="font-family:monospace;color:var(--green)">${rupee(d.total)}</td>
+                </tr>`).join('')}
+              </tbody></table></div>`
+        }
+      </div>
+    </div>`;
+}
+
+// Owner Dashboard
+function renderOwnerDashboard() {
+  const { dashboard: d, todayBills: b } = state.data;
+  if (!d) return;
+  const { today, stock } = d;
+  const bills = b?.bills || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="page">
+      <div class="page-header">
+        <div><div class="page-title">My Shop Dashboard</div><div class="page-sub">${state.user.shopName || ''}</div></div>
+        <a href="http://localhost:3000" target="_blank" class="btn btn-ghost">Open Shop App →</a>
+      </div>
+      <div class="grid-4">
+        <div class="stat-card"><span class="stat-icon">₹</span><div class="stat-label">Today's sales</div><div class="stat-value green">${rupee(today.totalSales)}</div><div class="stat-sub">${today.billCount} bills</div></div>
+        <div class="stat-card"><span class="stat-icon">🧾</span><div class="stat-label">Avg bill</div><div class="stat-value blue">${rupee(today.avgBillValue)}</div></div>
+        <div class="stat-card"><span class="stat-icon">⚠️</span><div class="stat-label">Low stock</div><div class="stat-value amber">${stock.lowStockCount}</div></div>
+        <div class="stat-card"><span class="stat-icon">🚫</span><div class="stat-label">Out of stock</div><div class="stat-value red">${stock.outOfStockCount}</div></div>
+      </div>
+      <div class="card">
+        <div class="sec-title">Today's bills</div>
+        ${bills.length === 0
+          ? '<p style="color:var(--text2);font-size:13px">No bills today yet</p>'
+          : `<div class="tbl-wrap"><table>
+              <thead><tr><th>Bill #</th><th>Items</th><th>Total</th><th>Time</th></tr></thead>
+              <tbody>${bills.slice(0,10).map(b => `
+                <tr>
+                  <td style="font-family:monospace;color:var(--accent)">${b.billNumber}</td>
+                  <td style="color:var(--text2)">${b.items.map(i=>`${i.productName}×${i.quantity}`).join(', ')}</td>
+                  <td style="font-family:monospace;color:var(--green)">${rupee(b.totalAmount)}</td>
+                  <td style="color:var(--text3)">${new Date(b.createdAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+                </tr>`).join('')}
+              </tbody></table></div>`
+        }
+      </div>
+    </div>`;
+}
+
+// Super Admin — All Shops
+function renderShops() {
+  const shops = state.data.shops?.shops || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="page">
+      <div class="page-header">
+        <div><div class="page-title">All Shops</div><div class="page-sub">${shops.length} registered shops</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Shop</th><th>Owner</th><th>Staff</th><th>Products</th><th>Bills</th><th>Revenue</th><th>Since</th></tr></thead>
+          <tbody>
+            ${shops.length === 0
+              ? `<tr><td colspan="7" class="tbl-empty">No shops yet</td></tr>`
+              : shops.map(s => `
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div class="shop-avatar">${(s.shopName||s.name)[0]}</div>
+                      <div>
+                        <div style="font-weight:500">${s.shopName || '—'}</div>
+                        <div style="font-size:11px;color:var(--text3)">${s.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>${s.name}</td>
+                  <td>${badge(s.staffCount + ' staff', 'gray')}</td>
+                  <td>${s.productCount}</td>
+                  <td>${s.billCount}</td>
+                  <td style="font-family:monospace;color:var(--green)">${rupee(s.totalRevenue)}</td>
+                  <td style="color:var(--text2)">${fmt(s.createdAt)}</td>
+                </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// Super Admin — All Users
+function renderUsers() {
+  const users = state.data.users?.users || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="page">
+      <div class="page-header">
+        <div><div class="page-title">All Users</div><div class="page-sub">${users.length} accounts</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Shop / Owner</th><th>Joined</th></tr></thead>
+          <tbody>
+            ${users.length === 0
+              ? `<tr><td colspan="5" class="tbl-empty">No users</td></tr>`
+              : users.map(u => `
+                <tr>
+                  <td style="font-weight:500">${u.name}</td>
+                  <td style="color:var(--text2)">${u.email}</td>
+                  <td>${roleBadge(u.role)}</td>
+                  <td style="color:var(--text2)">${u.shopName || (u.owner ? u.owner.shopName || u.owner.name : '—')}</td>
+                  <td style="color:var(--text3)">${fmt(u.createdAt)}</td>
+                </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// Owner — Staff Management
+function renderStaff() {
+  const staff = state.data.staff?.staff || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="page">
+      <div class="page-header">
+        <div><div class="page-title">Staff Management</div><div class="page-sub">${staff.length} staff members</div></div>
+        <button class="btn btn-primary" onclick="openAddStaff()">+ Add Staff</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead>
+          <tbody>
+            ${staff.length === 0
+              ? `<tr><td colspan="5" class="tbl-empty">No staff yet. Add your first team member.</td></tr>`
+              : staff.map(s => `
+                <tr>
+                  <td style="font-weight:500">${s.name}</td>
+                  <td style="color:var(--text2)">${s.email}</td>
+                  <td>${roleBadge(s.role)}</td>
+                  <td style="color:var(--text3)">${fmt(s.createdAt)}</td>
+                  <td>
+                    <div style="display:flex;gap:8px">
+                      <button class="btn btn-ghost btn-sm" onclick="openEditStaff('${s._id}','${s.name}','${s.email}')">Edit</button>
+                      <button class="btn btn-danger btn-sm" onclick="deleteStaff('${s._id}','${s.name}')">Remove</button>
+                    </div>
+                  </td>
+                </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div id="staff-modal"></div>
+    </div>`;
+}
+
+// ── Staff modal ───────────────────────────────────────────────────────────────
+function openAddStaff() {
+  document.getElementById('staff-modal').innerHTML = `
+    <div class="modal-backdrop" onclick="closeModal()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Add Staff Member</span>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="sf-name" placeholder="Staff name"></div>
+          <div class="form-group"><label class="form-label">Email *</label><input class="form-input" id="sf-email" type="email" placeholder="staff@shop.com"></div>
+          <div class="form-group"><label class="form-label">Password *</label><input class="form-input" id="sf-pass" type="password" placeholder="Min 6 characters"></div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveStaff(null)">Add Staff</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openEditStaff(id, name, email) {
+  document.getElementById('staff-modal').innerHTML = `
+    <div class="modal-backdrop" onclick="closeModal()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <span class="modal-title">Edit Staff Member</span>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">Full name</label><input class="form-input" id="sf-name" value="${name}"></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="sf-email" type="email" value="${email}"></div>
+          <div class="form-group"><label class="form-label">New password <span style="color:var(--text3)">(leave blank to keep)</span></label><input class="form-input" id="sf-pass" type="password" placeholder="Optional"></div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveStaff('${id}')">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function closeModal() { document.getElementById('staff-modal').innerHTML = ''; }
+
+async function saveStaff(id) {
+  const name  = document.getElementById('sf-name').value.trim();
+  const email = document.getElementById('sf-email').value.trim();
+  const pass  = document.getElementById('sf-pass').value.trim();
+  if (!name || !email) { toast('Name and email required', 'error'); return; }
+  if (!id && !pass)    { toast('Password required for new staff', 'error'); return; }
+  try {
+    const body = { name, email, ...(pass ? { password: pass } : {}) };
+    if (id) { await req('PUT',  `/staff/${id}`, body); toast('Staff updated'); }
+    else     { await req('POST', '/staff', body); toast('Staff added'); }
+    closeModal();
+    state.data.staff = await req('GET', '/staff');
+    renderStaff();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteStaff(id, name) {
+  if (!confirm(`Remove "${name}" from your team?`)) return;
+  try {
+    await req('DELETE', `/staff/${id}`);
+    toast('Staff removed');
+    state.data.staff = await req('GET', '/staff');
+    renderStaff();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render() {
+  if (!state.token || !state.user) { renderLogin(); return; }
+  renderShell();
+  loadTabData(state.tab);
+}
+
+// Enter on login page
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('password')) doLogin();
+});
+
+render();
+</script>
+</body>
+</html>
