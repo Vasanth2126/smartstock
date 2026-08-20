@@ -1,0 +1,77 @@
+/* NEW FILE: smart-inventory-frontend/src/pages/SuperAdmin.css */
+
+.sa-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.sa-tab {
+  padding: 8px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.sa-tab:hover  { color: var(--text); }
+.sa-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.sa-search {
+  width: 280px;
+  padding: 8px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 16px;
+  display: block;
+}
+.sa-search:focus { border-color: var(--accent); }
+
+.sa-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.sa-btn-ghost   { background: var(--bg3); color: var(--text2); border-color: var(--border); }
+.sa-btn-ghost:hover { color: var(--text); }
+.sa-btn-danger  { background: var(--red-bg); color: var(--red); border-color: rgba(248,113,113,0.3); }
+.sa-btn-success { background: var(--green-bg); color: var(--green); border-color: rgba(52,211,153,0.3); }
+
+/* Detail */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 800px) { .detail-grid { grid-template-columns: 1fr; } }
+
+.detail-info {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px 12px;
+  font-size: 13px;
+  align-items: center;
+}
+.detail-label { color: var(--text2); font-size: 12px; }
+
+.staff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.staff-row:last-child { border-bottom: none; }
