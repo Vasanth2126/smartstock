@@ -12,15 +12,7 @@ export default function App() {
       <AuthProvider>
         <StatusBar style="light" />
         <AppNavigator />
-        <Toast
-          config={{
-            success: ({ text1, text2 }) => (
-              <React.Fragment>
-                {/* uses default toast style */}
-              </React.Fragment>
-            ),
-          }}
-        />
+        <Toast />
       </AuthProvider>
     </SafeAreaProvider>
   );

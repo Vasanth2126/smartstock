@@ -26,6 +26,10 @@ export default function Login() {
     }
   };
 
+  const fillDemo = (email, password = 'password123') => {
+    setForm({ email, password });
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -43,8 +47,35 @@ export default function Login() {
           No account? <Link to="/register" className="auth-link">Register your shop</Link>
         </p>
         <div className="auth-demo">
-          <span>Demo login:</span>
-          <code>ramesh@shop.com</code> / <code>password123</code>
+          <span style={{ width: '100%', marginBottom: 4, fontWeight: 600 }}>Quick Demo Logins:</span>
+          <button
+            type="button"
+            className="demo-pill"
+            onClick={() => fillDemo('owner@retailhub.com')}
+          >
+            🏪 Owner (Alex)
+          </button>
+          <button
+            type="button"
+            className="demo-pill"
+            onClick={() => fillDemo('cashier@retailhub.com')}
+          >
+            💳 Cashier (Sarah)
+          </button>
+          <button
+            type="button"
+            className="demo-pill"
+            onClick={() => fillDemo('admin@smartstock.com')}
+          >
+            🛡️ Superadmin
+          </button>
+          <button
+            type="button"
+            className="demo-pill"
+            onClick={() => fillDemo('ramesh@shop.com')}
+          >
+            🛒 Ramesh Store
+          </button>
         </div>
       </div>
     </div>

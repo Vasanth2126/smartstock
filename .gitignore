@@ -1,7 +1,56 @@
-.idea/
-.vscode/
+# Dependencies
 node_modules/
+*/node_modules/
+package-lock.json
+
+# Environment Variables
 .env
 .env.*
 !.env.example
+
+# Android & Mobile Build Artifacts & Binaries
+*.apk
+*.aab
+SmartStock-Release.apk
+*.bundle
+*.hbc
+.expo/
+.eas/
+dist/
+build/
+android/.gradle/
+android/app/build/
+android/build/
+ios/build/
+ios/Pods/
+
+# Video & Large Media Files
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+apkvideo.mp4
+
+# Local Database & Storage Data
+data/
+data/db/
+
+# Logs and Crash Dumps
 *.log
+hs_err_pid*.log
+replay_pid*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & Editor Configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+Desktop.ini

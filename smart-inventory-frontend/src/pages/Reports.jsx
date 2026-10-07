@@ -52,10 +52,10 @@ export default function Reports() {
         <>
           {/* Today stats */}
           <div className="grid-4" style={{ marginBottom: 24 }}>
-            <StatCard icon="₹" label="Today's revenue" value={`₹${summary.today.totalSales.toLocaleString('en-IN')}`} color="green" />
-            <StatCard icon="🧾" label="Bills today" value={summary.today.billCount} color="blue" />
+            <StatCard icon="₹" label="Today's revenue" value={`₹${(summary?.today?.totalSales || 0).toLocaleString('en-IN')}`} color="green" />
+            <StatCard icon="🧾" label="Bills today" value={summary?.today?.billCount || 0} color="blue" />
             <StatCard icon="📦" label="Revenue in period" value={`₹${(sales?.totalRevenue || 0).toLocaleString('en-IN')}`} color="purple" />
-            <StatCard icon="📈" label="Avg bill value" value={`₹${summary.today.avgBillValue}`} color="default" />
+            <StatCard icon="📈" label="Avg bill value" value={`₹${(summary?.today?.avgBillValue || 0).toLocaleString('en-IN')}`} color="default" />
           </div>
 
           <div className="grid-2" style={{ marginBottom: 20 }}>

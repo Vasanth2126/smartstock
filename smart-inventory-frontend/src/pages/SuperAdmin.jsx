@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StatCard, Card, Badge, Spinner, Empty, Table } from '../components/ui/UI';
+import { StatCard, Card, Badge, Spinner, Empty, Table, Btn } from '../components/ui/UI';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import './SuperAdmin.css';
@@ -8,8 +8,9 @@ export default function SuperAdmin() {
   const [stats, setStats]     = useState(null);
   const [shops, setShops]     = useState([]);
   const [users, setUsers]     = useState([]);
-  const [tab, setTab]         = useState('overview');
+  const [tab, setTab]         = useState('shops'); // 'shops', 'users', 'detail'
   const [search, setSearch]   = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [detail, setDetail]   = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -22,22 +23,28 @@ export default function SuperAdmin() {
         api.get('/admin/users'),
       ]);
       setStats(s.data.stats);
-      setShops(sh.data.shops);
-      setUsers(u.data.users);
+      setShops(sh.data.shops || []);
+      setUsers(u.data.users || []);
     } catch (e) {
-      toast.error('Failed to load admin data');
+      toast.error('Failed to load superadmin data');
     } finally { setLoading(false); }
   };
 
   useEffect(() => { loadAll(); }, []);
 
-  const toggleUser = async (userId) => {
+  const toggleUser = async (userId, name, currentStatus) => {
     try {
       const { data } = await api.patch(`/admin/users/${userId}/toggle`);
-      toast.success(data.message);
+      toast.success(data.message || `${name} status updated`);
       loadAll();
+      if (detail && detail.owner?._id === userId) {
+        setDetail(d => ({
+          ...d,
+          owner: { ...d.owner, isActive: !d.owner.isActive },
+        }));
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
+      toast.error(err.response?.data?.message || 'Action failed');
     }
   };
 
@@ -47,63 +54,101 @@ export default function SuperAdmin() {
       const { data } = await api.get(`/admin/shops/${ownerId}`);
       setDetail(data);
       setTab('detail');
+    } catch {
+      toast.error('Failed to load shop inspection details');
     } finally { setDetailLoading(false); }
   };
 
-  const filteredShops = shops.filter(s =>
-    !search ||
-    s.name?.toLowerCase().includes(search.toLowerCase()) ||
-    s.shopName?.toLowerCase().includes(search.toLowerCase()) ||
-    s.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredShops = shops.filter(s => {
+    const matches = !search ||
+      s.name?.toLowerCase().includes(search.toLowerCase()) ||
+      s.shopName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.email?.toLowerCase().includes(search.toLowerCase());
+    if (!matches) return false;
+    if (statusFilter === 'active') return s.isActive === true;
+    if (statusFilter === 'blocked') return s.isActive === false;
+    return true;
+  });
 
-  const filteredUsers = users.filter(u =>
-    !search ||
-    u.name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => {
+    const matches = !search ||
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      (u.shopName || u.owner?.shopName || '').toLowerCase().includes(search.toLowerCase());
+    if (!matches) return false;
+    if (statusFilter === 'active') return u.isActive === true;
+    if (statusFilter === 'blocked') return u.isActive === false;
+    return true;
+  });
 
   if (loading) return <div className="page"><Spinner /></div>;
 
   const shopColumns = [
-    { key: 'shopName', label: 'Shop', render: s => (
+    { key: 'shopName', label: 'Shop & Owner', render: s => (
       <div>
-        <div style={{ fontWeight: 500 }}>{s.shopName || s.name}</div>
-        <div style={{ fontSize: 11, color: 'var(--text2)' }}>{s.email}</div>
+        <div style={{ fontWeight: 600, color: '#fff' }}>{s.shopName || s.name}</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)' }}>Owner: {s.name} ({s.email})</div>
       </div>
     )},
-    { key: 'owner',        label: 'Owner',    render: s => s.name },
-    { key: 'productCount', label: 'Products', render: s => <span className="mono">{s.productCount}</span> },
-    { key: 'billCount',    label: 'Bills',    render: s => <span className="mono">{s.billCount}</span> },
-    { key: 'totalRevenue', label: 'Revenue',  render: s => <span className="mono text-green">₹{(s.totalRevenue||0).toLocaleString('en-IN')}</span> },
-    { key: 'staffCount',   label: 'Staff',    render: s => <span className="mono">{s.staffCount}</span> },
-    { key: 'isActive',     label: 'Status',   render: s => <Badge color={s.isActive ? 'green' : 'red'}>{s.isActive ? 'Active' : 'Blocked'}</Badge> },
-    { key: 'actions', label: '', render: s => (
-      <div style={{ display:'flex', gap:8 }}>
-        <button className="sa-btn sa-btn-ghost" onClick={() => loadDetail(s._id)}>View →</button>
-        <button className={`sa-btn ${s.isActive ? 'sa-btn-danger' : 'sa-btn-success'}`} onClick={() => toggleUser(s._id)}>
-          {s.isActive ? 'Block' : 'Unblock'}
+    { key: 'everydaySales', label: '📅 Everyday (Today)', render: s => (
+      <div>
+        <div className="mono text-green" style={{ fontWeight: 700 }}>
+          ₹{(s.sales?.today?.revenue || 0).toLocaleString('en-IN')}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text3)' }}>{s.sales?.today?.count || 0} bills today</div>
+      </div>
+    )},
+    { key: 'sevenDaySales', label: '📊 Last 7 Days', render: s => (
+      <div>
+        <div className="mono text-accent" style={{ fontWeight: 700 }}>
+          ₹{(s.sales?.sevenDays?.revenue || 0).toLocaleString('en-IN')}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text3)' }}>{s.sales?.sevenDays?.count || 0} bills (7d)</div>
+      </div>
+    )},
+    { key: 'monthlySales', label: '📈 Monthly (30d)', render: s => (
+      <div>
+        <div className="mono text-purple" style={{ fontWeight: 700 }}>
+          ₹{(s.sales?.monthly?.revenue || 0).toLocaleString('en-IN')}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text3)' }}>{s.sales?.monthly?.count || 0} bills (30d)</div>
+      </div>
+    )},
+    { key: 'status', label: 'Status', render: s => (
+      <Badge color={s.isActive ? 'green' : 'red'}>{s.isActive ? 'Active' : 'Blocked'}</Badge>
+    )},
+    { key: 'actions', label: 'Actions', render: s => (
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="sa-btn sa-btn-ghost" onClick={() => loadDetail(s._id)}>Inspect Details →</button>
+        <button
+          className={`sa-btn ${s.isActive ? 'sa-btn-danger' : 'sa-btn-success'}`}
+          onClick={() => toggleUser(s._id, s.shopName || s.name, s.isActive)}
+        >
+          {s.isActive ? 'Block Shop' : 'Unblock Shop'}
         </button>
       </div>
     )},
   ];
 
   const userColumns = [
-    { key: 'name', label: 'Name', render: u => (
+    { key: 'name', label: 'User Details', render: u => (
       <div>
-        <div style={{ fontWeight: 500 }}>{u.name}</div>
+        <div style={{ fontWeight: 600 }}>{u.name}</div>
         <div style={{ fontSize: 11, color: 'var(--text2)' }}>{u.email}</div>
       </div>
     )},
     { key: 'role', label: 'Role', render: u => (
-      <Badge color={u.role==='superadmin'?'purple':u.role==='owner'?'blue':'default'}>{u.role}</Badge>
+      <Badge color={u.role==='superadmin'?'purple':u.role==='owner'?'blue':'default'}>{u.role.toUpperCase()}</Badge>
     )},
-    { key: 'owner',     label: 'Shop',       render: u => u.owner?.shopName || u.shopName || '—' },
-    { key: 'lastLogin', label: 'Last login',  render: u => u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-IN') : 'Never' },
-    { key: 'isActive',  label: 'Status',     render: u => <Badge color={u.isActive?'green':'red'}>{u.isActive?'Active':'Blocked'}</Badge> },
-    { key: 'actions',   label: '',           render: u => u.role !== 'superadmin' && (
-      <button className={`sa-btn ${u.isActive?'sa-btn-danger':'sa-btn-success'}`} onClick={() => toggleUser(u._id)}>
-        {u.isActive ? 'Block' : 'Unblock'}
+    { key: 'shop', label: 'Store Association', render: u => u.owner?.shopName || u.shopName || 'Platform HQ' },
+    { key: 'createdAt', label: 'Registered Date', render: u => new Date(u.createdAt).toLocaleDateString('en-IN') },
+    { key: 'status', label: 'Status', render: u => <Badge color={u.isActive?'green':'red'}>{u.isActive?'Active':'Blocked'}</Badge> },
+    { key: 'actions', label: '', render: u => u.role !== 'superadmin' && (
+      <button
+        className={`sa-btn ${u.isActive?'sa-btn-danger':'sa-btn-success'}`}
+        onClick={() => toggleUser(u._id, u.name, u.isActive)}
+      >
+        {u.isActive ? 'Block User' : 'Unblock User'}
       </button>
     )},
   ];
@@ -112,106 +157,156 @@ export default function SuperAdmin() {
     <div className="page">
       <div className="page-header">
         <div>
-          <div className="page-title">⚡ Super Admin Panel</div>
-          <div className="page-sub">Platform-wide management — all shops and users</div>
+          <div className="page-title">👑 Super Admin Portal</div>
+          <div className="page-sub">Shop governance, sales surveillance & access control (Everyday, 7 Days, Monthly)</div>
         </div>
       </div>
 
       <div className="sa-tabs">
-        {[
-          ['overview','Overview'],
-          ['shops','All Shops'],
-          ['users','All Users'],
-          ...(detail?[['detail',`Shop: ${detail?.owner?.shopName||''}`]]:[])
-        ].map(([key,label]) => (
-          <button key={key} className={`sa-tab ${tab===key?'active':''}`} onClick={()=>setTab(key)}>{label}</button>
-        ))}
+        <button className={`sa-tab ${tab==='shops'?'active':''}`} onClick={()=>setTab('shops')}>
+          🏪 Shops & Sales Breakdown ({shops.length})
+        </button>
+        <button className={`sa-tab ${tab==='users'?'active':''}`} onClick={()=>setTab('users')}>
+          👥 Platform Users ({users.length})
+        </button>
+        {detail && (
+          <button className={`sa-tab ${tab==='detail'?'active':''}`} onClick={()=>setTab('detail')}>
+            🔍 Shop Inspection: {detail.owner.shopName || detail.owner.name}
+          </button>
+        )}
       </div>
 
-      {tab==='overview' && stats && (
-        <>
-          <div className="grid-4" style={{marginBottom:24}}>
-            <StatCard icon="🏪" label="Total shops"     value={stats.totalShops}    color="blue" />
-            <StatCard icon="👥" label="Total staff"     value={stats.totalStaff}    color="default" />
-            <StatCard icon="📦" label="Total products"  value={stats.totalProducts} color="purple" />
-            <StatCard icon="₹"  label="Today's revenue" value={`₹${(stats.todayRevenue||0).toLocaleString('en-IN')}`} color="green" sub={`${stats.todayBillCount} bills today`} />
+      {/* Search and Filters */}
+      {tab !== 'detail' && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+          <input
+            className="sa-search"
+            style={{ margin: 0, flex: 1 }}
+            placeholder={tab === 'shops' ? 'Search shops by name, owner, or email…' : 'Search users…'}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              className={statusFilter === 'all' ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
+              onClick={() => setStatusFilter('all')}
+            >
+              All
+            </button>
+            <button
+              className={statusFilter === 'active' ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
+              onClick={() => setStatusFilter('active')}
+            >
+              Active
+            </button>
+            <button
+              className={statusFilter === 'blocked' ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
+              onClick={() => setStatusFilter('blocked')}
+            >
+              Blocked
+            </button>
           </div>
-          <Card>
-            <div style={{fontWeight:600,fontSize:14,marginBottom:16}}>Recently registered shops</div>
-            <Table
-              columns={[
-                {key:'shopName',label:'Shop',render:s=>s.shopName||s.name},
-                {key:'email',label:'Email'},
-                {key:'isActive',label:'Status',render:s=><Badge color={s.isActive?'green':'red'}>{s.isActive?'Active':'Blocked'}</Badge>},
-                {key:'createdAt',label:'Joined',render:s=>new Date(s.createdAt).toLocaleDateString('en-IN')},
-                {key:'actions',label:'',render:s=><button className="sa-btn sa-btn-ghost" onClick={()=>loadDetail(s._id)}>View →</button>},
-              ]}
-              data={shops.slice(0,5)}
-            />
-          </Card>
-        </>
+        </div>
       )}
 
-      {tab==='shops' && (
-        <>
-          <input className="sa-search" placeholder="Search shops…" value={search} onChange={e=>setSearch(e.target.value)} />
-          <Table columns={shopColumns} data={filteredShops} emptyText="No shops found" />
-        </>
+      {/* SHOPS TAB */}
+      {tab === 'shops' && (
+        <Table columns={shopColumns} data={filteredShops} emptyText="No shops found" />
       )}
 
-      {tab==='users' && (
-        <>
-          <input className="sa-search" placeholder="Search users…" value={search} onChange={e=>setSearch(e.target.value)} />
-          <Table columns={userColumns} data={filteredUsers} emptyText="No users found" />
-        </>
+      {/* USERS TAB */}
+      {tab === 'users' && (
+        <Table columns={userColumns} data={filteredUsers} emptyText="No users found" />
       )}
 
-      {tab==='detail' && (
+      {/* DETAIL INSPECTION TAB */}
+      {tab === 'detail' && (
         detailLoading ? <Spinner /> : detail && (
           <div className="detail-grid">
             <Card>
-              <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>{detail.owner.shopName||detail.owner.name}</div>
-              <div className="detail-info">
-                <span className="detail-label">Owner</span><span>{detail.owner.name}</span>
-                <span className="detail-label">Email</span><span>{detail.owner.email}</span>
-                <span className="detail-label">Status</span><Badge color={detail.owner.isActive?'green':'red'}>{detail.owner.isActive?'Active':'Blocked'}</Badge>
-                <span className="detail-label">Joined</span><span>{new Date(detail.owner.createdAt).toLocaleDateString('en-IN')}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: '#fff' }}>{detail.owner.shopName || detail.owner.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>Owner: {detail.owner.name} ({detail.owner.email})</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Joined: {new Date(detail.owner.createdAt).toLocaleDateString('en-IN')}</div>
+                </div>
+                <Badge color={detail.owner.isActive ? 'green' : 'red'}>{detail.owner.isActive ? 'Active' : 'Blocked'}</Badge>
               </div>
-              <div className="grid-2" style={{marginTop:16}}>
-                <StatCard icon="₹"  label="Today's sales" value={`₹${(detail.summary.todaySales||0).toLocaleString('en-IN')}`} color="green" />
-                <StatCard icon="🧾" label="Total bills"   value={detail.summary.totalBills} color="blue" />
-              </div>
-              <div style={{marginTop:12}}>
-                <button className={`sa-btn ${detail.owner.isActive?'sa-btn-danger':'sa-btn-success'}`} onClick={()=>toggleUser(detail.owner._id)}>
-                  {detail.owner.isActive?'Block this shop':'Unblock this shop'}
+
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  className={`sa-btn ${detail.owner.isActive ? 'sa-btn-danger' : 'sa-btn-success'}`}
+                  style={{ width: '100%', padding: '10px 16px' }}
+                  onClick={() => toggleUser(detail.owner._id, detail.owner.shopName || detail.owner.name, detail.owner.isActive)}
+                >
+                  {detail.owner.isActive ? '🚫 Block This Entire Shop' : '✅ Unblock This Shop'}
                 </button>
               </div>
+
+              {/* Exact Sales Matrix */}
+              <div className="grid-2" style={{ gap: 10 }}>
+                <StatCard
+                  icon="📅"
+                  label="Everyday (Today Sales)"
+                  value={`₹${(detail.sales?.today?.revenue || 0).toLocaleString('en-IN')}`}
+                  color="green"
+                  sub={`${detail.sales?.today?.count || 0} bills today`}
+                />
+                <StatCard
+                  icon="📊"
+                  label="Last 7 Days Sales"
+                  value={`₹${(detail.sales?.sevenDays?.revenue || 0).toLocaleString('en-IN')}`}
+                  color="blue"
+                  sub={`${detail.sales?.sevenDays?.count || 0} bills in 7d`}
+                />
+                <StatCard
+                  icon="📈"
+                  label="Monthly (30 Days Sales)"
+                  value={`₹${(detail.sales?.monthly?.revenue || 0).toLocaleString('en-IN')}`}
+                  color="purple"
+                  sub={`${detail.sales?.monthly?.count || 0} bills in 30d`}
+                />
+                <StatCard
+                  icon="💰"
+                  label="All-Time Total Revenue"
+                  value={`₹${(detail.sales?.allTime?.revenue || 0).toLocaleString('en-IN')}`}
+                  color="cyan"
+                  sub={`${detail.summary?.totalBills || 0} total bills`}
+                />
+              </div>
             </Card>
+
             <Card>
-              <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Staff ({detail.staff.length})</div>
-              {detail.staff.length===0
-                ? <Empty icon="👥" title="No staff members" />
-                : detail.staff.map(s=>(
-                    <div key={s._id} className="staff-row">
-                      <div>
-                        <div style={{fontWeight:500,fontSize:13}}>{s.name}</div>
-                        <div style={{fontSize:11,color:'var(--text2)'}}>{s.email}</div>
-                      </div>
-                      <div style={{fontSize:11,color:'var(--text3)'}}>
-                        {s.lastLogin?`Last: ${new Date(s.lastLogin).toLocaleDateString('en-IN')}`:'Never logged in'}
-                      </div>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Store Staff ({detail.staff.length})</div>
+              {detail.staff.length === 0 ? (
+                <Empty icon="👥" title="No staff members" />
+              ) : (
+                detail.staff.map(s => (
+                  <div key={s._id} className="staff-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: 13 }}>{s.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text2)' }}>{s.email}</div>
                     </div>
-                  ))
-              }
+                    <button
+                      className={`sa-btn ${s.isActive ? 'sa-btn-danger' : 'sa-btn-success'}`}
+                      onClick={() => toggleUser(s._id, s.name, s.isActive)}
+                    >
+                      {s.isActive ? 'Block Staff' : 'Unblock Staff'}
+                    </button>
+                  </div>
+                ))
+              )}
             </Card>
-            <Card style={{gridColumn:'1 / -1'}}>
-              <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Recent bills</div>
+
+            <Card style={{ gridColumn: '1 / -1' }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Recent Sales Transactions</div>
               <Table
                 columns={[
-                  {key:'billNumber',label:'Bill #',render:b=><span className="mono text-accent">{b.billNumber}</span>},
-                  {key:'items',label:'Items',render:b=>b.items.map(i=>`${i.productName} ×${i.quantity}`).join(', ')},
-                  {key:'totalAmount',label:'Total',render:b=><span className="mono text-green">₹{b.totalAmount}</span>},
-                  {key:'billDate',label:'Date'},
+                  { key: 'billNumber', label: 'Bill #', render: b => <span className="mono text-accent">{b.billNumber}</span> },
+                  { key: 'items', label: 'Items', render: b => b.items.map(i => `${i.productName} ×${i.quantity}`).join(', ') },
+                  { key: 'paymentMethod', label: 'Payment Mode', render: b => <Badge color="blue">{b.paymentMethod?.toUpperCase()}</Badge> },
+                  { key: 'totalAmount', label: 'Total Paid', render: b => <span className="mono text-green">₹{b.totalAmount}</span> },
+                  { key: 'billDate', label: 'Date', render: b => b.billDate || new Date(b.createdAt).toLocaleDateString('en-IN') },
                 ]}
                 data={detail.recentBills}
                 emptyText="No bills yet"

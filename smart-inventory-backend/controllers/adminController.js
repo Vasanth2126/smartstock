@@ -41,6 +41,62 @@ const getPlatformStats = async (req, res) => {
   }
 };
 
+// Helper: calculate today, 7-day, and 30-day (monthly) sales metrics
+const calculateSalesBreakdown = (bills) => {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  let todayRevenue = 0;
+  let todayBillCount = 0;
+  let sevenDayRevenue = 0;
+  let sevenDayBillCount = 0;
+  let monthlyRevenue = 0;
+  let monthlyBillCount = 0;
+  let totalRevenue = 0;
+
+  // Daily trend map for the last 7 days
+  const dailyMap = {};
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const key = d.toISOString().split('T')[0];
+    dailyMap[key] = { date: key, total: 0, count: 0 };
+  }
+
+  bills.forEach((b) => {
+    const bDate = new Date(b.createdAt || b.billDate);
+    const amt = b.totalAmount || 0;
+    totalRevenue += amt;
+
+    if (bDate >= todayStart) {
+      todayRevenue += amt;
+      todayBillCount += 1;
+    }
+    if (bDate >= sevenDaysAgo) {
+      sevenDayRevenue += amt;
+      sevenDayBillCount += 1;
+    }
+    if (bDate >= thirtyDaysAgo) {
+      monthlyRevenue += amt;
+      monthlyBillCount += 1;
+    }
+
+    const dateKey = bDate.toISOString().split('T')[0];
+    if (dailyMap[dateKey]) {
+      dailyMap[dateKey].total += amt;
+      dailyMap[dateKey].count += 1;
+    }
+  });
+
+  return {
+    today: { revenue: todayRevenue, count: todayBillCount },
+    sevenDays: { revenue: sevenDayRevenue, count: sevenDayBillCount, daily: Object.values(dailyMap) },
+    monthly: { revenue: monthlyRevenue, count: monthlyBillCount },
+    allTime: { revenue: totalRevenue, count: bills.length },
+  };
+};
+
 // GET /api/admin/shops
 const getAllShops = async (req, res) => {
   try {
@@ -51,18 +107,20 @@ const getAllShops = async (req, res) => {
         const userIds = await getShopUserIds(owner._id);
         const productCount = await Product.countDocuments({ user: { $in: userIds } });
         const bills = await Bill.find({ user: { $in: userIds } });
-        const totalRevenue = bills.reduce((sum, b) => sum + b.totalAmount, 0);
+        const sales = calculateSalesBreakdown(bills);
 
         return {
           _id: owner._id,
           name: owner.name,
-          shopName: owner.shopName,
+          shopName: owner.shopName || owner.name,
           email: owner.email,
+          phone: owner.phone || '',
           isActive: owner.isActive,
           createdAt: owner.createdAt,
           productCount,
           billCount: bills.length,
-          totalRevenue,
+          totalRevenue: sales.allTime.revenue,
+          sales, // contains today, sevenDays, monthly
           staffCount: userIds.length - 1,
         };
       })
@@ -86,17 +144,20 @@ const getShopDetail = async (req, res) => {
     const userIds = [owner._id, ...staff.map((s) => s._id)];
 
     const allBills = await Bill.find({ user: { $in: userIds } }).sort({ createdAt: -1 });
-    const recentBills = allBills.slice(0, 10);
-
-    const { start, end } = getTodayRange();
-    const todaySales = allBills
-      .filter((b) => b.createdAt >= start && b.createdAt <= end)
-      .reduce((sum, b) => sum + b.totalAmount, 0);
+    const recentBills = allBills.slice(0, 15);
+    const sales = calculateSalesBreakdown(allBills);
 
     res.json({
       owner,
       staff,
-      summary: { totalBills: allBills.length, todaySales },
+      sales,
+      summary: {
+        totalBills: allBills.length,
+        todaySales: sales.today.revenue,
+        sevenDaySales: sales.sevenDays.revenue,
+        monthlySales: sales.monthly.revenue,
+        totalRevenue: sales.allTime.revenue,
+      },
       recentBills,
     });
   } catch (error) {

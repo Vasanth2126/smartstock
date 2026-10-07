@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: smartstock-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - smartstock-net
+
+  # SmartStock Backend REST API
+  backend:
+    build:
+      context: ./smart-inventory-backend
+      dockerfile: Dockerfile
+    container_name: smartstock-backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/smart-inventory
+      - JWT_SECRET=smartstock_enterprise_secure_token_key_2026
+      - JWT_EXPIRES_IN=7d
+      - NODE_ENV=production
+    depends_on:
+      - mongodb
+    networks:
+      - smartstock-net
+
+  # SmartStock React Frontend Client
+  frontend:
+    build:
+      context: ./smart-inventory-frontend
+      dockerfile: Dockerfile
+    container_name: smartstock-frontend
+    restart: unless-stopped
+    ports:
+      - '3000:80'
+    depends_on:
+      - backend
+    networks:
+      - smartstock-net
+
+volumes:
+  mongo_data:
+
+networks:
+  smartstock-net:
+    driver: bridge

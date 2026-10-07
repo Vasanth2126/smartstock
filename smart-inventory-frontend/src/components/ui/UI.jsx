@@ -16,20 +16,31 @@ export function Btn({ children, variant = 'default', size = 'md', loading, class
 
 // Card
 export function Card({ children, className = '', ...props }) {
-  return <div className={`card ${className}`} {...props}>{children}</div>;
+  return <div className={`glass-card card ${className}`} {...props}>{children}</div>;
 }
 
 // Badge / pill
 export function Badge({ children, color = 'default' }) {
-  return <span className={`badge badge-${color}`}>{children}</span>;
+  const colorClassMap = {
+    green: 'badge-emerald',
+    emerald: 'badge-emerald',
+    amber: 'badge-amber',
+    red: 'badge-rose',
+    rose: 'badge-rose',
+    blue: 'badge-indigo',
+    indigo: 'badge-indigo',
+    purple: 'badge-indigo',
+    default: 'badge-indigo',
+  };
+  return <span className={`badge ${colorClassMap[color] || 'badge-indigo'}`}>{children}</span>;
 }
 
 // Stock status badge
 export function StockBadge({ status }) {
   const map = {
-    in_stock:     { color: 'green',  label: 'In stock' },
-    low_stock:    { color: 'amber',  label: 'Low stock' },
-    out_of_stock: { color: 'red',    label: 'Out of stock' },
+    in_stock:     { color: 'emerald', label: 'In Stock' },
+    low_stock:    { color: 'amber',   label: 'Low Stock' },
+    out_of_stock: { color: 'rose',    label: 'Out of Stock' },
   };
   const { color, label } = map[status] || map.in_stock;
   return <Badge color={color}>{label}</Badge>;
@@ -60,11 +71,13 @@ export function Select({ label, error, children, className = '', ...props }) {
 }
 
 // Stat card
-export function StatCard({ label, value, sub, color = 'default', icon }) {
+export function StatCard({ label, value, sub, color = 'indigo', icon: Icon }) {
   return (
-    <div className={`stat-card stat-${color}`}>
-      {icon && <span className="stat-icon">{icon}</span>}
-      <div className="stat-label">{label}</div>
+    <div className={`stat-card glass-card stat-${color}`}>
+      <div className="stat-header">
+        <div className="stat-label">{label}</div>
+        {Icon && <div className="stat-icon-wrapper">{typeof Icon === 'string' ? Icon : <Icon size={20} />}</div>}
+      </div>
       <div className="stat-value">{value}</div>
       {sub && <div className="stat-sub">{sub}</div>}
     </div>
@@ -73,7 +86,11 @@ export function StatCard({ label, value, sub, color = 'default', icon }) {
 
 // Spinner
 export function Spinner() {
-  return <div className="spinner" />;
+  return (
+    <div className="spinner-wrapper">
+      <div className="spinner" />
+    </div>
+  );
 }
 
 // Empty state
@@ -88,11 +105,11 @@ export function Empty({ icon = '📭', title = 'Nothing here yet', sub = '' }) {
 }
 
 // Modal
-export function Modal({ open, onClose, title, children, width = 480 }) {
+export function Modal({ open, onClose, title, children, width = 520 }) {
   if (!open) return null;
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: width }} onClick={e => e.stopPropagation()}>
+    <div className="modal-backdrop animate-fade-in" onClick={onClose}>
+      <div className="modal glass-card" style={{ maxWidth: width }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">{title}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
@@ -104,7 +121,7 @@ export function Modal({ open, onClose, title, children, width = 480 }) {
 }
 
 // Table
-export function Table({ columns, data, emptyText = 'No data' }) {
+export function Table({ columns, data, emptyText = 'No data available' }) {
   return (
     <div className="table-wrap">
       <table className="tbl">
@@ -115,7 +132,7 @@ export function Table({ columns, data, emptyText = 'No data' }) {
           {data.length === 0
             ? <tr><td colSpan={columns.length} className="tbl-empty">{emptyText}</td></tr>
             : data.map((row, i) => (
-                <tr key={i}>
+                <tr key={row._id || i}>
                   {columns.map(c => (
                     <td key={c.key}>{c.render ? c.render(row) : row[c.key]}</td>
                   ))}

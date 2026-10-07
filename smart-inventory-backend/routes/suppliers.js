@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, restrictTo } = require('../middleware/auth');
 const {
   getSuppliers,
   getSupplier,
@@ -10,6 +10,7 @@ const {
 } = require('../controllers/supplierController');
 
 router.use(protect);
+router.use(restrictTo('owner', 'superadmin'));
 
 router.route('/').get(getSuppliers).post(createSupplier);
 router.route('/:id').get(getSupplier).put(updateSupplier).delete(deleteSupplier);

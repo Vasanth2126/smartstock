@@ -25,7 +25,8 @@
         {
           "cameraPermission": "Allow SmartStock to access your camera to scan barcodes."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "eas": {
