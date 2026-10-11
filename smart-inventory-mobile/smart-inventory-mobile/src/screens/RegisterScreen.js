@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Input, Btn } from '../components/UI';
 import { colors, spacing, font } from '../utils/theme';
+import { getApiErrorMessage } from '../services/api';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -17,7 +18,7 @@ export default function RegisterScreen({ navigation }) {
     try {
       await register(form);
     } catch (err) {
-      Alert.alert('Registration failed', err.response?.data?.message || 'Try again');
+      Alert.alert('Registration Failed', getApiErrorMessage(err, 'Unable to register shop account.'));
     } finally {
       setLoading(false);
     }

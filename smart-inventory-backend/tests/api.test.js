@@ -6,33 +6,41 @@ const Product = require('../models/Product');
 const Bill = require('../models/Bill');
 
 let ownerToken = '';
+let ownerId = '';
 let cashierToken = '';
 let testProductId = '';
 
 beforeAll(async () => {
   // Connect to test database
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/smart-inventory-test';
-  if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(mongoUri);
+  if (mongoose.connection.readyState !== 1) {
+    if (mongoose.connection.readyState === 2) {
+      await new Promise((resolve) => mongoose.connection.once('open', resolve));
+    } else {
+      await mongoose.connect(mongoUri);
+    }
   }
 
-  // Cleanup test collections
-  await User.deleteMany({ email: /test.*@smartstock.com/ });
-  await Product.deleteMany({ name: /Test Product/ });
-  await Bill.deleteMany({});
+  // Safety check: ensure tests only run against a database whose name contains 'test'
+  const dbName = mongoose.connection.name || '';
+  if (!dbName.toLowerCase().includes('test')) {
+    throw new Error(`SAFETY ERROR: Refusing to run tests on non-test database: "${dbName}". Database name must include "test".`);
+  }
 
   // 1. Create Test Owner
+  const ownerEmail = `test_owner_${Date.now()}@smartstock.com`;
   const ownerRes = await request(app)
     .post('/api/auth/register')
     .send({
       name: 'Test Owner',
-      email: `test_owner_${Date.now()}@smartstock.com`,
+      email: ownerEmail,
       password: 'password123',
       shopName: 'Placement Consultancy Store',
     });
 
   expect(ownerRes.status).toBe(201);
   ownerToken = ownerRes.body.token;
+  ownerId = ownerRes.body.user?._id;
 
   // 2. Create Test Product with initial stock of 10
   const prodRes = await request(app)
@@ -45,7 +53,7 @@ beforeAll(async () => {
       price: 100,
       stock: 10,
       lowStockThreshold: 3,
-      sku: 'TST-001',
+      sku: `TST-${Date.now()}`,
     });
 
   expect(prodRes.status).toBe(201);
@@ -53,6 +61,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Scoped cleanup: only remove data created during this test run
+  if (ownerId) {
+    await Bill.deleteMany({ user: ownerId });
+    await Product.deleteMany({ user: ownerId });
+    await User.deleteMany({ _id: ownerId });
+  }
   await mongoose.connection.close();
 });
 

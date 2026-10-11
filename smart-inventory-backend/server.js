@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -8,14 +9,50 @@ const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/db');
 const { apiLimiter } = require('./middleware/rateLimiter');
 
+// Validate critical environment variables (skip during tests where test setup provides it)
+if (process.env.NODE_ENV !== 'test' && !process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+  process.exit(1);
+}
+
 const app = express();
+
+// Trust reverse proxy (e.g. Render, Nginx) so rate limiters inspect actual client IP
+app.set('trust proxy', 1);
 
 // Connect to MongoDB
 connectDB();
 
 // Security Middlewares
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+// CORS configuration supporting mobile apps (no Origin header), local development, and production domains
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Mobile apps (React Native Android/iOS), Postman, and server-to-server have no Origin header
+    if (!origin) return callback(null, true);
+    // Allow local development and test environments
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      return callback(null, true);
+    }
+    // Whitelist check in production
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS policy does not allow access from origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -42,6 +79,12 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/audit-logs', require('./routes/audit'));
 
+// Helper to determine active database state
+const getDbStatus = () => {
+  const states = { 0: 'Disconnected', 1: 'Connected', 2: 'Connecting', 3: 'Disconnecting' };
+  return states[mongoose.connection.readyState] || 'Disconnected';
+};
+
 // Root & API Status endpoints
 app.get(['/', '/api'], (req, res) => {
   res.json({
@@ -50,7 +93,7 @@ app.get(['/', '/api'], (req, res) => {
     version: '1.0.0',
     documentation: '/api/docs',
     health: '/api/health',
-    database: 'Connected',
+    database: getDbStatus(),
   });
 });
 
@@ -61,7 +104,7 @@ app.get(['/health', '/api/health'], (req, res) => {
     system: 'SmartStock Enterprise API',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    database: 'Connected',
+    database: getDbStatus(),
   });
 });
 

@@ -3,7 +3,7 @@ const User = require('../models/User');
 const { recordAuditLog } = require('../middleware/auditLogger');
 
 const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET || 'smartstock_jwt_super_secret_consultancy_key_2026', {
+  jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 

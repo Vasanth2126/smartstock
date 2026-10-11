@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Input, Btn, Badge } from '../components/UI';
 import { colors, spacing, radius, font, shadows } from '../utils/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getStoredServerUrl, setCustomServerUrl, DEFAULT_SERVER_URL, normalizeUrl } from '../services/api';
+import { getStoredServerUrl, setCustomServerUrl, resetToDefaultServerUrl, DEFAULT_SERVER_URL, normalizeUrl, getApiErrorMessage } from '../services/api';
 import axios from 'axios';
 
 export default function LoginScreen({ navigation }) {
@@ -27,11 +27,17 @@ export default function LoginScreen({ navigation }) {
     Alert.alert('Server Saved', `Active backend URL:\n${updated}`);
   };
 
+  const handleResetServer = async () => {
+    const updated = await resetToDefaultServerUrl();
+    setServerUrl(updated);
+    Alert.alert('Reset to USB Default', `Active backend URL reset to:\n${updated}\n\nMake sure to run on PC:\nadb reverse tcp:5000 tcp:5000`);
+  };
+
   const handleTestServer = async () => {
     setTestingServer(true);
     try {
       const cleanUrl = normalizeUrl(serverUrl);
-      const res = await axios.get(`${cleanUrl}/health`, { timeout: 4000 });
+      const res = await axios.get(`${cleanUrl}/health`, { timeout: 5000 });
       if (res.data?.status === 'ok') {
         Alert.alert(
           '✅ Connected Successfully!',
@@ -45,7 +51,7 @@ export default function LoginScreen({ navigation }) {
       Alert.alert(
         isNetworkError ? '⚡ Connection Failed' : `Error (${err.response?.status})`,
         isNetworkError
-          ? `Could not reach: ${normalizeUrl(serverUrl)}\n\nFor USB development:\n1. Ensure USB debugging is ON\n2. Run: adb reverse tcp:5000 tcp:5000\n3. Backend is running on port 5000.`
+          ? `Could not reach: ${normalizeUrl(serverUrl)}\n\nFor USB development:\n1. Ensure USB debugging is enabled on phone\n2. Run on PC: adb reverse tcp:5000 tcp:5000\n3. Backend is running on port 5000.`
           : (err.response?.data?.message || err.message)
       );
     } finally {
@@ -66,28 +72,26 @@ export default function LoginScreen({ navigation }) {
       await login(email, password);
     } catch (err) {
       let title = 'Login Failed';
-      let message = 'An unexpected error occurred.';
+      let message = getApiErrorMessage(err);
 
       if (!err.response) {
-        title = '⚡ Connection Error';
-        message = `Cannot reach the SmartStock server at:\n${serverUrl}\n\nPlease check:\n1. Run on PC: adb reverse tcp:5000 tcp:5000\n2. Verify Node backend is running on port 5000.`;
+        title = '⚡ Server Connection Failed';
+        message = `Cannot connect to SmartStock server at:\n${serverUrl}\n\nPlease check:\n1. USB cable connected\n2. Run on PC: adb reverse tcp:5000 tcp:5000\n3. Node/Express backend is running on port 5000.`;
       } else if (err.response.status === 401) {
         title = 'Invalid Credentials';
-        message = err.response.data?.message || 'The email or password you entered is incorrect.';
+        message = err.response.data?.message || 'Invalid email or password.';
       } else if (err.response.status === 403) {
         title = 'Access Denied';
         message = err.response.data?.message || 'You do not have permission to access this portal.';
       } else if (err.response.status === 404) {
         title = 'Endpoint Not Found (404)';
-        message = 'Login route not found on the backend. Expected /api/auth/login.';
+        message = 'Requested login route not found on the backend. Expected /api/auth/login.';
       } else if (err.response.status === 429) {
         title = 'Too Many Requests';
         message = 'Too many login attempts. Please wait a moment and try again.';
       } else if (err.response.status >= 500) {
         title = 'Server Error (500)';
-        message = err.response.data?.message || 'The backend server encountered an error.';
-      } else {
-        message = err.response.data?.message || err.message;
+        message = err.response.data?.message || 'SmartStock server encountered an error.';
       }
 
       Alert.alert(title, message);
@@ -239,16 +243,22 @@ export default function LoginScreen({ navigation }) {
                 style={[s.serverBtn, { flex: 1, backgroundColor: colors.accentBg, borderColor: colors.accentGlow }]} 
                 onPress={handleSaveServer}
               >
-                <Text style={{ color: colors.accentLight, fontWeight: font.bold, fontSize: 12 }}>💾 Save URL</Text>
+                <Text style={{ color: colors.accentLight, fontWeight: font.bold, fontSize: 11 }}>💾 Save URL</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[s.serverBtn, { flex: 1, backgroundColor: colors.bg2, borderColor: colors.border }]} 
+                style={[s.serverBtn, { flex: 1.1, backgroundColor: colors.bg2, borderColor: colors.border }]} 
                 onPress={handleTestServer}
                 disabled={testingServer}
               >
-                <Text style={{ color: colors.text, fontWeight: font.bold, fontSize: 12 }}>
+                <Text style={{ color: colors.text, fontWeight: font.bold, fontSize: 11 }}>
                   {testingServer ? '⏳ Testing...' : '⚡ Test Connection'}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[s.serverBtn, { flex: 0.9, backgroundColor: colors.bg3, borderColor: colors.border2 }]} 
+                onPress={handleResetServer}
+              >
+                <Text style={{ color: colors.text2, fontWeight: font.bold, fontSize: 11 }}>🔄 Reset USB</Text>
               </TouchableOpacity>
             </View>
           </View>

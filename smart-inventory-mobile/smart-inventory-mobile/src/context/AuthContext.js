@@ -9,74 +9,53 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  const checkLogin = async () => {
-    console.log("========== AUTH START ==========");
+    const checkLogin = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
 
-    try {
-      const token = await AsyncStorage.getItem("token");
-      console.log("Token:", token);
-
-      if (!token) {
-        console.log("No token found");
+        const res = await api.get('/auth/me');
+        setUser(res.data.user);
+      } catch (err) {
+        if (__DEV__) {
+          console.log('[AUTH CHECK] Session verification failed:', err.response?.data?.message || err.message);
+        }
+        await AsyncStorage.removeItem('token');
+      } finally {
         setLoading(false);
-        return;
       }
+    };
 
-      console.log("Calling /auth/me...");
-
-      const res = await api.get("/auth/me");
-
-      console.log("Response received");
-      console.log(res.data);
-
-      setUser(res.data.user);
-    } catch (err) {
-      console.log("AUTH ERROR");
-      console.log(err.message);
-
-      if (err.response) {
-        console.log(err.response.status);
-        console.log(err.response.data);
-      }
-
-      await AsyncStorage.removeItem("token");
-    }
-
-    console.log("Loading false");
-    setLoading(false);
-  };
-
-  checkLogin();
-}, []);
+    checkLogin();
+  }, []);
 
   const login = async (email, password) => {
-  console.log("1. Login started");
+    if (__DEV__) {
+      console.log(`[AUTH] Login initiated for: ${email}`);
+    }
 
-  try {
-    console.log("2. Sending request");
+    try {
+      const { data } = await api.post('/auth/login', {
+        email,
+        password,
+      });
 
-    const { data } = await api.post("/auth/login", {
-      email,
-      password,
-    });
+      if (__DEV__) {
+        console.log(`[AUTH] Login successful for: ${data.user?.email} (Role: ${data.user?.role})`);
+      }
 
-    console.log("3. Response received");
-    console.log(data);
-
-    await AsyncStorage.setItem("token", data.token);
-
-    console.log("4. Token stored");
-
-    setUser(data.user);
-
-    console.log("5. User updated");
-  } catch (err) {
-    console.log("LOGIN ERROR");
-    console.log(err);
-    console.log(err.response?.data);
-    throw err;
-  }
-};
+      await AsyncStorage.setItem('token', data.token);
+      setUser(data.user);
+    } catch (err) {
+      if (__DEV__) {
+        console.log('[AUTH] Login failed:', err.response?.data?.message || err.message);
+      }
+      throw err;
+    }
+  };
 
   const register = async (form) => {
     const { data } = await api.post('/auth/register', form);

@@ -6,8 +6,6 @@ services:
     image: mongo:6.0
     container_name: smartstock-mongodb
     restart: unless-stopped
-    ports:
-      - '27017:27017'
     volumes:
       - mongo_data:/data/db
     networks:
@@ -25,7 +23,7 @@ services:
     environment:
       - PORT=5000
       - MONGO_URI=mongodb://mongodb:27017/smart-inventory
-      - JWT_SECRET=smartstock_enterprise_secure_token_key_2026
+      - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=7d
       - NODE_ENV=production
     depends_on:
